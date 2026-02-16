@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Building2 } from 'lucide-react'
 
 // Hardcoded Supabase config
@@ -8,6 +9,7 @@ const SUPABASE_URL = 'https://jdlcgozjavmwlpjxqxiz.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkbGNnb3pqYXZtd2xwanhxeGl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMTQzMTYsImV4cCI6MjA4NjU5MDMxNn0.EeTUTIM9_lZO5oyiGiENjC66p2RloOeBSnpls4Cej7A'
 
 export default function LoginForm() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -28,16 +30,28 @@ export default function LoginForm() {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) {
-      setError(error.message)
-    } else {
-      window.location.href = '/'
+      console.log('Login response:', { data, error })
+
+      if (error) {
+        setError(error.message)
+      } else if (data?.session) {
+        console.log('Login successful, redirecting...')
+        // Force a full page reload to ensure session is set
+        window.location.replace('/')
+      } else {
+        setError('No session created. Please try again.')
+      }
+    } catch (err: any) {
+      console.error('Login error:', err)
+      setError(err.message || 'An error occurred during login')
     }
+    
     setLoading(false)
   }
 
