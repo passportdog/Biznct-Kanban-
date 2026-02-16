@@ -1,13 +1,15 @@
 'use client'
 
 import { Deal } from '@/types'
-import { Building2, User, DollarSign, Calendar } from 'lucide-react'
+import { Building2, DollarSign, Calendar, AlertCircle } from 'lucide-react'
 
 interface DealCardProps {
   deal: Deal
+  isOverdue?: boolean
+  overdueDays?: number
 }
 
-export default function DealCard({ deal }: DealCardProps) {
+export default function DealCard({ deal, isOverdue, overdueDays }: DealCardProps) {
   const priorityColors = {
     high: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
     medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -15,7 +17,21 @@ export default function DealCard({ deal }: DealCardProps) {
   }
 
   return (
-    <div className="bg-light-surface dark:bg-dark-surface rounded-lg p-3 card-shadow hover:card-shadow-hover transition-all cursor-pointer border border-light-border dark:border-dark-border hover:-translate-y-0.5">
+    <div className={`bg-light-surface dark:bg-dark-surface rounded-lg p-3 card-shadow hover:card-shadow-hover transition-all cursor-pointer border ${
+      isOverdue 
+        ? 'border-red-500/50 shadow-red-500/20' 
+        : 'border-light-border dark:border-dark-border hover:-translate-y-0.5'
+    }`}>
+      {/* Overdue Badge */}
+      {isOverdue && (
+        <div className="flex items-center gap-1.5 mb-2 text-red-500">
+          <AlertCircle size={14} />
+          <span className="text-xs font-semibold">
+            {overdueDays}d OVERDUE
+          </span>
+        </div>
+      )}
+
       <div className="flex items-start justify-between mb-2">
         <h4 className="font-medium text-sm line-clamp-2">{deal.title}</h4>
         {deal.priority && (
@@ -48,7 +64,7 @@ export default function DealCard({ deal }: DealCardProps) {
         </div>
 
         {deal.next_step_date && (
-          <div className="flex items-center gap-1 text-brand-blue dark:text-brand-green">
+          <div className={`flex items-center gap-1 ${isOverdue ? 'text-red-500 font-medium' : 'text-brand-blue dark:text-brand-green'}`}>
             <Calendar size={12} />
             <span>{new Date(deal.next_step_date).toLocaleDateString()}</span>
           </div>

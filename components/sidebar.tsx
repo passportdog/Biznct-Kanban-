@@ -9,6 +9,7 @@ import {
   CheckSquare,
   BarChart3,
   Sparkles,
+  Brain,
   LogOut 
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -29,6 +30,7 @@ const menuItems = [
 ]
 
 const aiItems = [
+  { id: 'intelligence', label: 'Intelligence', icon: Brain },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'ai-insights', label: 'AI Insights', icon: Sparkles },
 ]

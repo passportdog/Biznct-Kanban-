@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { parseISO, isBefore, differenceInDays } from 'date-fns'
+import { AlertCircle } from 'lucide-react'
+import { toast } from 'sonner'
 import KanbanColumn from './kanban-column'
 import { Deal, KanbanType } from '@/types'
 
@@ -10,10 +13,10 @@ interface KanbanBoardProps {
 }
 
 const pipelineColumns = [
-  { id: 'lead', label: 'New Lead', color: 'bg-gray-100 dark:bg-gray-800' },
+  { id: 'new_lead', label: 'New Lead', color: 'bg-gray-100 dark:bg-gray-800' },
   { id: 'contacted', label: 'Contacted', color: 'bg-blue-50 dark:bg-blue-900/20' },
-  { id: 'discovery', label: 'Discovery Call', color: 'bg-purple-50 dark:bg-purple-900/20' },
-  { id: 'proposal', label: 'Proposal Sent', color: 'bg-yellow-50 dark:bg-yellow-900/20' },
+  { id: 'discovery', label: 'Discovery', color: 'bg-purple-50 dark:bg-purple-900/20' },
+  { id: 'proposal_sent', label: 'Proposal Sent', color: 'bg-yellow-50 dark:bg-yellow-900/20' },
   { id: 'negotiation', label: 'Negotiation', color: 'bg-orange-50 dark:bg-orange-900/20' },
   { id: 'won', label: 'Won', color: 'bg-green-50 dark:bg-green-900/20' },
   { id: 'lost', label: 'Lost', color: 'bg-red-50 dark:bg-red-900/20' },
@@ -47,7 +50,7 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
     setLoading(true)
     const { data, error } = await supabase
       .from('crm_deals')
-      .select('*')
+      .select('*, crm_accounts(name)')
       .eq('type', type)
       .order('updated_at', { ascending: false })
 
@@ -60,6 +63,63 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
   const fetchAccounts = async () => {
     const { data } = await supabase.from('crm_accounts').select('id, name').limit(100)
     if (data) setAccounts(data)
+  }
+
+  const handleStageChange = async (dealId: string, newStage: string) => {
+    const deal = deals.find(d => d.id === dealId)
+    if (!deal) return
+
+    const updates: any = { stage: newStage }
+    
+    // If moving to won, set closed_at and probability
+    if (newStage === 'won') {
+      updates.closed_at = new Date().toISOString()
+      updates.probability = 100
+      
+      // Create activity log
+      await supabase.from('crm_activities').insert({
+        entity_type: 'deal',
+        entity_id: dealId,
+        activity_type: 'stage_change',
+        description: `Deal won - $${deal.value?.toLocaleString()}`,
+        performed_by: null, // Would be current user
+        metadata: { previous_stage: deal.stage, new_stage: 'won' }
+      })
+
+      // Create client project from won deal
+      if (deal.account_id) {
+        const { error: projectError } = await supabase.from('crm_client_projects').insert({
+          deal_id: dealId,
+          account_id: deal.account_id,
+          title: deal.title,
+          stage: 'onboarding',
+          services: deal.service_type || [],
+          monthly_value: deal.value || 0,
+          owner_id: deal.owner_id,
+        })
+
+        if (!projectError) {
+          toast.success('Project auto-created from won deal!')
+        }
+      }
+
+      toast.success('Deal marked as won! Project created.')
+    }
+
+    // If moving to lost, set closed_at
+    if (newStage === 'lost') {
+      updates.closed_at = new Date().toISOString()
+      updates.probability = 0
+    }
+
+    const { error } = await supabase
+      .from('crm_deals')
+      .update(updates)
+      .eq('id', dealId)
+
+    if (!error) {
+      setDeals(deals.map(d => d.id === dealId ? { ...d, ...updates } : d))
+    }
   }
 
   const handleAddDeal = async (e: React.FormEvent) => {
@@ -77,14 +137,14 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
       probability: parseInt(formData.get('probability') as string) || 20,
       priority: formData.get('priority') as string,
       status: 'active',
-      company_id: accountId || null,
+      account_id: accountId || null,
       company_name: accountName || formData.get('company_name') as string,
       contact_name: formData.get('contact_name') as string,
       owner_name: formData.get('owner_name') as string,
       next_step: formData.get('next_step') as string,
       next_step_date: formData.get('next_step_date') as string || null,
       description: formData.get('description') as string,
-      tags: (formData.get('tags') as string).split(',').map(t => t.trim()).filter(Boolean),
+      service_type: (formData.get('tags') as string).split(',').map(t => t.trim()).filter(Boolean),
     }
 
     const { data, error } = await supabase
@@ -96,12 +156,25 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
       setDeals([...deals, data[0]])
       setShowAddModal(false)
       setSelectedColumn('')
+      toast.success('Deal created successfully!')
+    } else {
+      toast.error('Failed to create deal')
     }
   }
 
   const openAddModal = (columnId: string) => {
     setSelectedColumn(columnId)
     setShowAddModal(true)
+  }
+
+  const isOverdue = (deal: Deal) => {
+    if (!deal.next_step_date || ['won', 'lost'].includes(deal.stage)) return false
+    return isBefore(parseISO(deal.next_step_date), new Date())
+  }
+
+  const getOverdueDays = (deal: Deal) => {
+    if (!deal.next_step_date) return 0
+    return differenceInDays(new Date(), parseISO(deal.next_step_date))
   }
 
   if (loading) {
@@ -121,6 +194,9 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
             column={column}
             deals={deals.filter((d) => d.stage === column.id)}
             onAddDeal={() => openAddModal(column.id)}
+            onStageChange={handleStageChange}
+            isOverdue={isOverdue}
+            getOverdueDays={getOverdueDays}
           />
         ))}
       </div>

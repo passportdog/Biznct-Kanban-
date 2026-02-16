@@ -11,6 +11,7 @@ export interface Deal {
   priority?: 'high' | 'medium' | 'low'
   company_name?: string
   company_id?: string
+  account_id?: string
   contact_name?: string
   contact_id?: string
   owner_name?: string
@@ -19,6 +20,9 @@ export interface Deal {
   next_step_date?: string
   description?: string
   tags?: string[]
+  service_type?: string[]
+  closed_at?: string
+  crm_accounts?: { name: string }
   created_at: string
   updated_at: string
 }

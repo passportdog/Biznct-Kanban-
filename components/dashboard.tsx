@@ -11,6 +11,7 @@ import CommandPalette from './command-palette'
 import DealAIInsights from './deal-ai-insights'
 import AccountsDirectory from './accounts-directory'
 import TasksManager from './tasks-manager'
+import IntelligenceDashboard from './intelligence-dashboard'
 
 interface DashboardProps {
   user: User
@@ -20,6 +21,34 @@ export default function Dashboard({ user }: DashboardProps) {
   const [activeView, setActiveView] = useState('dashboard')
   const [showAI, setShowAI] = useState(false)
 
+  const getViewTitle = () => {
+    switch (activeView) {
+      case 'dashboard': return 'Dashboard'
+      case 'pipeline': return 'Sales Pipeline'
+      case 'delivery': return 'Client Delivery'
+      case 'accounts': return 'Accounts'
+      case 'tasks': return 'Tasks'
+      case 'intelligence': return 'Intelligence'
+      case 'analytics': return 'Analytics'
+      case 'ai-insights': return 'AI Insights'
+      default: return 'Dashboard'
+    }
+  }
+
+  const getViewSubtitle = () => {
+    switch (activeView) {
+      case 'dashboard': return "Welcome back! Here's what's happening today."
+      case 'pipeline': return 'Track and manage your sales opportunities'
+      case 'delivery': return 'Manage client projects and deliverables'
+      case 'accounts': return 'Manage your client relationships'
+      case 'tasks': return 'Stay on top of your to-do list'
+      case 'intelligence': return 'Revenue metrics, pipeline health, and data quality'
+      case 'analytics': return 'Deep insights into your sales performance'
+      case 'ai-insights': return 'AI-powered deal predictions and recommendations'
+      default: return ''
+    }
+  }
+
   return (
     <div className="flex h-screen bg-light-bg dark:bg-dark-bg">
       <Sidebar activeView={activeView} onViewChange={setActiveView} user={user} />
@@ -27,24 +56,8 @@ export default function Dashboard({ user }: DashboardProps) {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-light-border dark:border-dark-border flex items-center justify-between px-6 bg-light-surface dark:bg-dark-surface">
           <div>
-            <h1 className="text-xl font-semibold">
-              {activeView === 'dashboard' && 'Dashboard'}
-              {activeView === 'pipeline' && 'Sales Pipeline'}
-              {activeView === 'delivery' && 'Client Delivery'}
-              {activeView === 'accounts' && 'Accounts'}
-              {activeView === 'tasks' && 'Tasks'}
-              {activeView === 'analytics' && 'Analytics'}
-              {activeView === 'ai-insights' && 'AI Insights'}
-            </h1>
-            <p className="text-xs text-light-textSecondary">
-              {activeView === 'dashboard' && 'Welcome back! Here\'s what\'s happening today.'}
-              {activeView === 'pipeline' && 'Track and manage your sales opportunities'}
-              {activeView === 'delivery' && 'Manage client projects and deliverables'}
-              {activeView === 'accounts' && 'Manage your client relationships'}
-              {activeView === 'tasks' && 'Stay on top of your to-do list'}
-              {activeView === 'analytics' && 'Deep insights into your sales performance'}
-              {activeView === 'ai-insights' && 'AI-powered deal predictions and recommendations'}
-            </p>
+            <h1 className="text-xl font-semibold">{getViewTitle()}</h1>
+            <p className="text-xs text-light-textSecondary">{getViewSubtitle()}</p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -68,7 +81,7 @@ export default function Dashboard({ user }: DashboardProps) {
             {activeView === 'dashboard' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
-                  <AnalyticsDashboard />
+                  <IntelligenceDashboard />
                 </div>
                 <div className="space-y-6">
                   <ActivityTimeline />
@@ -79,6 +92,7 @@ export default function Dashboard({ user }: DashboardProps) {
             {activeView === 'delivery' && <KanbanBoard type="delivery" />}
             {activeView === 'accounts' && <AccountsDirectory />}
             {activeView === 'tasks' && <TasksManager />}
+            {activeView === 'intelligence' && <IntelligenceDashboard />}
             {activeView === 'analytics' && <AnalyticsDashboard />}
             {activeView === 'ai-insights' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

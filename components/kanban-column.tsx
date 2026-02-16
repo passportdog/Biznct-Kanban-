@@ -12,9 +12,19 @@ interface KanbanColumnProps {
   }
   deals: Deal[]
   onAddDeal: () => void
+  onStageChange?: (dealId: string, newStage: string) => void
+  isOverdue?: (deal: Deal) => boolean
+  getOverdueDays?: (deal: Deal) => number
 }
 
-export default function KanbanColumn({ column, deals, onAddDeal }: KanbanColumnProps) {
+export default function KanbanColumn({ 
+  column, 
+  deals, 
+  onAddDeal,
+  onStageChange,
+  isOverdue,
+  getOverdueDays
+}: KanbanColumnProps) {
   const totalValue = deals.reduce((sum, deal) => sum + (deal.value || 0), 0)
 
   return (
@@ -39,7 +49,12 @@ export default function KanbanColumn({ column, deals, onAddDeal }: KanbanColumnP
 
       <div className="flex-1 bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary rounded-b-xl p-2 space-y-2 min-h-[200px]">
         {deals.map((deal) => (
-          <DealCard key={deal.id} deal={deal} />
+          <DealCard 
+            key={deal.id} 
+            deal={deal} 
+            isOverdue={isOverdue?.(deal)}
+            overdueDays={getOverdueDays?.(deal)}
+          />
         ))}
       </div>
     </div>
