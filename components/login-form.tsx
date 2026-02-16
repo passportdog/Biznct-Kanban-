@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import BiznctLogo from './biznct-logo'
 
 export default function LoginForm() {
   const [email, setEmail] = useState('')
@@ -40,10 +40,10 @@ export default function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg">
       <div className="w-full max-w-md p-8 bg-light-surface dark:bg-dark-surface rounded-2xl card-shadow">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-xl gradient-primary flex items-center justify-center mx-auto mb-4">
-            <Building2 size={32} className="text-white" />
+          <div className="w-20 h-20 mx-auto mb-4">
+            <BiznctLogo className="w-full h-full" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Welcome to BizNet</h1>
+          <h1 className="text-2xl font-bold mb-2">Welcome to Biznct</h1>
           <p className="text-light-textSecondary dark:text-dark-textSecondary">
             Sign in to access your CRM
           </p>
@@ -63,7 +63,7 @@ export default function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2.5 rounded-lg bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary border border-light-border dark:border-dark-border focus:outline-none focus:border-brand-blue transition-colors"
-              placeholder="you@biznet.com"
+              placeholder="you@biznct.com"
               required
             />
           </div>
@@ -90,7 +90,7 @@ export default function LoginForm() {
         </form>
 
         <p className="mt-6 text-center text-sm text-light-textSecondary dark:text-dark-textSecondary">
-          BizNet-only access. Contact your administrator for an account.
+          Biznct-only access. Contact your administrator for an account.
         </p>
       </div>
     </div>

@@ -1,6 +1,6 @@
-# BizNet CRM
+# Biznct CRM
 
-BizNet-only CRM with Kanban boards for sales pipeline and client delivery.
+Biznct CRM with Kanban boards for sales pipeline and client delivery.
 
 ## Features
 

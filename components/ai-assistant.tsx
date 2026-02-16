@@ -44,7 +44,7 @@ export default function AIAssistant({ onClose }: AIAssistantProps) {
             <Bot size={18} className="text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">BizNet AI</h3>
+            <h3 className="font-semibold text-sm">Biznct AI</h3>
             <p className="text-xs text-light-textSecondary dark:text-dark-textSecondary">Your CRM assistant</p>
           </div>
         </div>

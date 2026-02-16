@@ -6,8 +6,8 @@ import { ThemeProvider } from '@/components/theme-provider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'BizNet CRM',
-  description: 'BizNet-only CRM with Kanban',
+  title: 'Biznct CRM',
+  description: 'Biznct CRM with Kanban',
 }
 
 export default function RootLayout({

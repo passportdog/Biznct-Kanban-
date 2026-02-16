@@ -10,6 +10,7 @@ import {
   LogOut 
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import BiznctLogo from './biznct-logo'
 
 interface SidebarProps {
   activeView: string
@@ -34,8 +35,9 @@ export default function Sidebar({ activeView, onViewChange, user }: SidebarProps
 
   return (
     <aside className="w-64 bg-light-surface dark:bg-dark-surface border-r border-light-border dark:border-dark-border flex flex-col">
-      <div className="h-16 flex items-center px-6 border-b border-light-border dark:border-dark-border">
-        <h1 className="text-xl font-bold text-brand-blue">BizNet</h1>
+      <div className="h-16 flex items-center px-6 border-b border-light-border dark:border-dark-border gap-3">
+        <BiznctLogo className="w-8 h-8" />
+        <h1 className="text-xl font-bold text-brand-blue">Biznct</h1>
       </div>
 
       <nav className="flex-1 py-4 px-3">
