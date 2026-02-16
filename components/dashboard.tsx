@@ -9,6 +9,8 @@ import AnalyticsDashboard from './analytics-dashboard'
 import ActivityTimeline from './activity-timeline'
 import CommandPalette from './command-palette'
 import DealAIInsights from './deal-ai-insights'
+import AccountsDirectory from './accounts-directory'
+import TasksManager from './tasks-manager'
 
 interface DashboardProps {
   user: User
@@ -75,24 +77,8 @@ export default function Dashboard({ user }: DashboardProps) {
             )}
             {activeView === 'pipeline' && <KanbanBoard type="pipeline" />}
             {activeView === 'delivery' && <KanbanBoard type="delivery" />}
-            {activeView === 'accounts' && (
-              <div className="text-center py-20">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-brand-blue/10 flex items-center justify-center">
-                  <span className="text-4xl">🏢</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Accounts Management</h3>
-                <p className="text-light-textSecondary">Full accounts directory coming soon</p>
-              </div>
-            )}
-            {activeView === 'tasks' && (
-              <div className="text-center py-20">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-brand-blue/10 flex items-center justify-center">
-                  <span className="text-4xl">✅</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Task Management</h3>
-                <p className="text-light-textSecondary">Advanced task tracking coming soon</p>
-              </div>
-            )}
+            {activeView === 'accounts' && <AccountsDirectory />}
+            {activeView === 'tasks' && <TasksManager />}
             {activeView === 'analytics' && <AnalyticsDashboard />}
             {activeView === 'ai-insights' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
