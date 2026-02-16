@@ -1,80 +1,39 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Building2 } from 'lucide-react'
-
-// Hardcoded Supabase config
-const SUPABASE_URL = 'https://jdlcgozjavmwlpjxqxiz.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkbGNnb3pqYXZtd2xwanhxeGl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMTQzMTYsImV4cCI6MjA4NjU5MDMxNn0.EeTUTIM9_lZO5oyiGiENjC66p2RloOeBSnpls4Cej7A'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LoginForm() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [supabase, setSupabase] = useState<any>(null)
-
-  // Lazy load Supabase client only on client side
-  useEffect(() => {
-    import('@supabase/supabase-js').then(({ createClient }) => {
-      setSupabase(createClient(SUPABASE_URL, SUPABASE_ANON_KEY))
-    })
-  }, [])
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!supabase) return
-    
     setLoading(true)
     setError('')
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-      console.log('Login response:', { data, error })
-
-      if (error) {
-        setError(error.message)
-        setLoading(false)
-        return
-      }
-
-      if (data?.session) {
-        console.log('Login successful, waiting for session to settle...')
-        
-        // Wait a moment for the session to be properly stored
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        console.log('Redirecting to dashboard...')
-        
-        // Try Next.js router first, then fallback to window.location
-        try {
-          router.push('/')
-          router.refresh()
-        } catch (e) {
-          console.log('Router push failed, using window.location')
-          window.location.href = '/'
-        }
-        
-        // Force reload after a short delay if router doesn't work
-        setTimeout(() => {
-          console.log('Forcing page reload...')
-          window.location.href = '/'
-        }, 1000)
-      } else {
-        setError('No session created. Please try again.')
-        setLoading(false)
-      }
-    } catch (err: any) {
-      console.error('Login error:', err)
-      setError(err.message || 'An error occurred during login')
+    if (error) {
+      setError(error.message)
       setLoading(false)
+      return
     }
+
+    // This is the key: router.refresh() forces Next.js to re-run
+    // server components, and the middleware will see the new cookie
+    // and redirect away from /login to /
+    router.refresh()
+    router.push('/')
   }
 
   return (
@@ -123,7 +82,7 @@ export default function LoginForm() {
 
           <button
             type="submit"
-            disabled={loading || !supabase}
+            disabled={loading}
             className="w-full py-2.5 rounded-lg gradient-primary text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {loading ? 'Signing in...' : 'Sign In'}

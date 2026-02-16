@@ -9,6 +9,7 @@ import {
   CheckSquare,
   LogOut 
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface SidebarProps {
   activeView: string
@@ -24,14 +25,9 @@ const menuItems = [
   { id: 'tasks', label: 'Tasks', icon: CheckSquare },
 ]
 
-// Hardcoded Supabase config
-const SUPABASE_URL = 'https://jdlcgozjavmwlpjxqxiz.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkbGNnb3pqYXZtd2xwanhxeGl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMTQzMTYsImV4cCI6MjA4NjU5MDMxNn0.EeTUTIM9_lZO5oyiGiENjC66p2RloOeBSnpls4Cej7A'
-
 export default function Sidebar({ activeView, onViewChange, user }: SidebarProps) {
   const handleLogout = async () => {
-    const { createClient } = await import('@supabase/supabase-js')
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    const supabase = createClient()
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
