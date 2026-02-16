@@ -1,18 +1,30 @@
 'use client'
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useEffect } from 'react'
 import { Building2 } from 'lucide-react'
+
+// Hardcoded Supabase config
+const SUPABASE_URL = 'https://jdlcgozjavmwlpjxqxiz.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkbGNnb3pqYXZtd2xwanhxeGl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMTQzMTYsImV4cCI6MjA4NjU5MDMxNn0.EeTUTIM9_lZO5oyiGiENjC66p2RloOeBSnpls4Cej7A'
 
 export default function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const supabase = createClient()
+  const [supabase, setSupabase] = useState<any>(null)
+
+  // Lazy load Supabase client only on client side
+  useEffect(() => {
+    import('@supabase/supabase-js').then(({ createClient }) => {
+      setSupabase(createClient(SUPABASE_URL, SUPABASE_ANON_KEY))
+    })
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!supabase) return
+    
     setLoading(true)
     setError('')
 
@@ -75,7 +87,7 @@ export default function LoginForm() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !supabase}
             className="w-full py-2.5 rounded-lg gradient-primary text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {loading ? 'Signing in...' : 'Sign In'}
