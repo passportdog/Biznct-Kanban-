@@ -40,19 +40,41 @@ export default function LoginForm() {
 
       if (error) {
         setError(error.message)
-      } else if (data?.session) {
-        console.log('Login successful, redirecting...')
-        // Force a full page reload to ensure session is set
-        window.location.replace('/')
+        setLoading(false)
+        return
+      }
+
+      if (data?.session) {
+        console.log('Login successful, waiting for session to settle...')
+        
+        // Wait a moment for the session to be properly stored
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        console.log('Redirecting to dashboard...')
+        
+        // Try Next.js router first, then fallback to window.location
+        try {
+          router.push('/')
+          router.refresh()
+        } catch (e) {
+          console.log('Router push failed, using window.location')
+          window.location.href = '/'
+        }
+        
+        // Force reload after a short delay if router doesn't work
+        setTimeout(() => {
+          console.log('Forcing page reload...')
+          window.location.href = '/'
+        }, 1000)
       } else {
         setError('No session created. Please try again.')
+        setLoading(false)
       }
     } catch (err: any) {
       console.error('Login error:', err)
       setError(err.message || 'An error occurred during login')
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   return (
