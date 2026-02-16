@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-blue: #2F6EDB;
+  --brand-blue-dark: #1E4F91;
+  --brand-green: #6DBE45;
+  --brand-green-light: #9EDB66;
+}
+
+@layer base {
+  body {
+    @apply bg-light-bg dark:bg-dark-bg text-light-textPrimary dark:text-dark-textPrimary;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, #2F6EDB 0%, #6DBE45 100%);
+  }
+  
+  .card-shadow {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+  
+  .card-shadow-hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  }
+}
