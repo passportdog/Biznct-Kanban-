@@ -38,7 +38,6 @@ export default function DealAIInsights() {
     const { data } = await supabase
       .from('crm_deals')
       .select('*')
-      .eq('type', 'pipeline')
       .neq('stage', 'won')
       .neq('stage', 'lost')
       .order('value', { ascending: false })
