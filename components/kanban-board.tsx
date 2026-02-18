@@ -318,7 +318,7 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
                       name="account_id"
                       className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
                     >
-                      <option value="">-- Select Account --</option>
+                      <option value="">— Unassigned —</option>
                       {accounts.map(account => (
                         <option key={account.id} value={account.id}>{account.name}</option>
                       ))}
@@ -373,7 +373,7 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
                         name="contact_id"
                         className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
                       >
-                        <option value="">-- Select Contact --</option>
+                        <option value="">— Unassigned —</option>
                         {contacts.map(contact => (
                           <option key={contact.id} value={contact.id}>{contact.name}</option>
                         ))}
@@ -386,7 +386,7 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
                       name="owner_id"
                       className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
                     >
-                      <option value="">-- Select Owner --</option>
+                      <option value="">— Unassigned —</option>
                       {members.map(member => (
                         <option key={member.id} value={member.id}>{member.name}</option>
                       ))}
