@@ -4,25 +4,21 @@ export interface Deal {
   id: string
   title: string
   stage: string
-  type: KanbanType
-  status: 'active' | 'won' | 'lost' | 'on_hold'
   value: number
   probability: number
-  priority?: 'high' | 'medium' | 'low'
-  company_name?: string
-  company_id?: string
   account_id?: string
-  contact_name?: string
   contact_id?: string
-  owner_name?: string
   owner_id?: string
+  service_type?: string[]
   next_step?: string
   next_step_date?: string
-  description?: string
-  tags?: string[]
-  service_type?: string[]
+  lost_reason?: string
   closed_at?: string
   crm_accounts?: { name: string }
+  // Display-only fields populated client-side from joined data
+  company_name?: string
+  owner_name?: string
+  priority?: 'high' | 'medium' | 'low'
   created_at: string
   updated_at: string
 }

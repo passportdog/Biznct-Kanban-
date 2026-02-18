@@ -37,6 +37,8 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedColumn, setSelectedColumn] = useState('')
   const [accounts, setAccounts] = useState<{id: string, name: string}[]>([])
+  const [contacts, setContacts] = useState<{id: string, name: string}[]>([])
+  const [members, setMembers] = useState<{id: string, name: string}[]>([])
   const supabase = createClient()
 
   const columns = type === 'pipeline' ? pipelineColumns : deliveryColumns
@@ -44,18 +46,52 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
   useEffect(() => {
     fetchDeals()
     fetchAccounts()
+    fetchContacts()
+    fetchMembers()
   }, [type])
 
   const fetchDeals = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('crm_deals')
-      .select('*, crm_accounts(name)')
-      .eq('type', type)
-      .order('updated_at', { ascending: false })
 
-    if (!error && data) {
-      setDeals(data)
+    if (type === 'delivery') {
+      // Delivery projects live in crm_client_projects, not crm_deals
+      const { data, error } = await supabase
+        .from('crm_client_projects')
+        .select('*, crm_accounts(name)')
+        .order('updated_at', { ascending: false })
+
+      if (!error && data) {
+        const mapped = data.map(p => ({
+          id: p.id,
+          title: p.title,
+          stage: p.stage,
+          value: p.monthly_value || 0,
+          probability: 0,
+          account_id: p.account_id,
+          owner_id: p.owner_id,
+          service_type: p.services || [],
+          company_name: (p.crm_accounts as any)?.name,
+          crm_accounts: p.crm_accounts as { name: string } | undefined,
+          next_step: p.next_step,
+          created_at: p.created_at,
+          updated_at: p.updated_at,
+        } as Deal))
+        setDeals(mapped)
+      }
+    } else {
+      // Pipeline deals from crm_deals — no type filter, stage column is used instead
+      const { data, error } = await supabase
+        .from('crm_deals')
+        .select('*, crm_accounts(name)')
+        .order('updated_at', { ascending: false })
+
+      if (!error && data) {
+        const mapped = data.map(d => ({
+          ...d,
+          company_name: (d.crm_accounts as any)?.name || d.company_name,
+        }))
+        setDeals(mapped)
+      }
     }
     setLoading(false)
   }
@@ -65,24 +101,34 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
     if (data) setAccounts(data)
   }
 
+  const fetchContacts = async () => {
+    const { data } = await supabase.from('crm_contacts').select('id, name').limit(100)
+    if (data) setContacts(data)
+  }
+
+  const fetchMembers = async () => {
+    const { data } = await supabase.from('crm_members').select('id, name').limit(100)
+    if (data) setMembers(data)
+  }
+
   const handleStageChange = async (dealId: string, newStage: string) => {
     const deal = deals.find(d => d.id === dealId)
     if (!deal) return
 
     const updates: any = { stage: newStage }
-    
+
     // If moving to won, set closed_at and probability
     if (newStage === 'won') {
       updates.closed_at = new Date().toISOString()
       updates.probability = 100
-      
+
       // Create activity log
       await supabase.from('crm_activities').insert({
         entity_type: 'deal',
         entity_id: dealId,
         activity_type: 'stage_change',
         description: `Deal won - $${deal.value?.toLocaleString()}`,
-        performed_by: null, // Would be current user
+        performed_by: null,
         metadata: { previous_stage: deal.stage, new_stage: 'won' }
       })
 
@@ -112,8 +158,9 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
       updates.probability = 0
     }
 
+    const table = type === 'delivery' ? 'crm_client_projects' : 'crm_deals'
     const { error } = await supabase
-      .from('crm_deals')
+      .from(table)
       .update(updates)
       .eq('id', dealId)
 
@@ -125,40 +172,77 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
   const handleAddDeal = async (e: React.FormEvent) => {
     e.preventDefault()
     const formData = new FormData(e.target as HTMLFormElement)
-    
-    const accountId = formData.get('company_id') as string
-    const accountName = accounts.find(a => a.id === accountId)?.name
 
-    const newDeal = {
-      title: formData.get('title') as string,
-      stage: selectedColumn,
-      type,
-      value: parseInt(formData.get('value') as string) || 0,
-      probability: parseInt(formData.get('probability') as string) || 20,
-      priority: formData.get('priority') as string,
-      status: 'active',
-      account_id: accountId || null,
-      company_name: accountName || formData.get('company_name') as string,
-      contact_name: formData.get('contact_name') as string,
-      owner_name: formData.get('owner_name') as string,
-      next_step: formData.get('next_step') as string,
-      next_step_date: formData.get('next_step_date') as string || null,
-      description: formData.get('description') as string,
-      service_type: (formData.get('tags') as string).split(',').map(t => t.trim()).filter(Boolean),
-    }
+    if (type === 'delivery') {
+      const payload = {
+        title: formData.get('title') as string,
+        stage: selectedColumn,
+        account_id: (formData.get('account_id') as string) || null,
+        owner_id: (formData.get('owner_id') as string) || null,
+        monthly_value: parseFloat(formData.get('value') as string) || 0,
+        services: (formData.get('service_type') as string || '').split(',').map(t => t.trim()).filter(Boolean),
+        next_step: (formData.get('next_step') as string) || null,
+      }
 
-    const { data, error } = await supabase
-      .from('crm_deals')
-      .insert([newDeal])
-      .select()
+      const { data, error } = await supabase
+        .from('crm_client_projects')
+        .insert([payload])
+        .select()
 
-    if (!error && data) {
-      setDeals([...deals, data[0]])
-      setShowAddModal(false)
-      setSelectedColumn('')
-      toast.success('Deal created successfully!')
+      if (!error && data) {
+        const newProject: Deal = {
+          id: data[0].id,
+          title: data[0].title,
+          stage: data[0].stage,
+          value: data[0].monthly_value || 0,
+          probability: 0,
+          account_id: data[0].account_id,
+          owner_id: data[0].owner_id,
+          service_type: data[0].services || [],
+          company_name: accounts.find(a => a.id === data[0].account_id)?.name,
+          created_at: data[0].created_at,
+          updated_at: data[0].updated_at,
+        }
+        setDeals([...deals, newProject])
+        setShowAddModal(false)
+        setSelectedColumn('')
+        toast.success('Project created successfully!')
+      } else {
+        toast.error('Failed to create project')
+      }
     } else {
-      toast.error('Failed to create deal')
+      // Correct payload matching crm_deals schema — no type, priority, status, company_name, contact_name, owner_name, description
+      const payload = {
+        title: formData.get('title') as string,
+        stage: selectedColumn,
+        value: parseFloat(formData.get('value') as string) || 0,
+        probability: parseInt(formData.get('probability') as string) || 20,
+        account_id: (formData.get('account_id') as string) || null,
+        contact_id: (formData.get('contact_id') as string) || null,
+        owner_id: (formData.get('owner_id') as string) || null,
+        next_step: (formData.get('next_step') as string) || null,
+        next_step_date: (formData.get('next_step_date') as string) || null,
+        service_type: (formData.get('service_type') as string || '').split(',').map(t => t.trim()).filter(Boolean),
+      }
+
+      const { data, error } = await supabase
+        .from('crm_deals')
+        .insert([payload])
+        .select()
+
+      if (!error && data) {
+        const newDeal: Deal = {
+          ...data[0],
+          company_name: accounts.find(a => a.id === data[0].account_id)?.name,
+          owner_name: members.find(m => m.id === data[0].owner_id)?.name,
+        }
+        setDeals([...deals, newDeal])
+        setShowAddModal(false)
+        setSelectedColumn('')
+        toast.success('Deal created successfully!')
+      } else {
+        toast.error('Failed to create deal')
+      }
     }
   }
 
@@ -201,147 +285,144 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
         ))}
       </div>
 
-      {/* Add Deal Modal */}
+      {/* Add Deal / Project Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddModal(false)} />
           <div className="relative bg-light-surface dark:bg-dark-surface rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto card-shadow">
             <div className="p-6">
-              <h2 className="text-xl font-semibold mb-1">Create New Deal</h2>
+              <h2 className="text-xl font-semibold mb-1">
+                {type === 'delivery' ? 'Create New Project' : 'Create New Deal'}
+              </h2>
               <p className="text-sm text-light-textSecondary mb-6">
                 Stage: {columns.find(c => c.id === selectedColumn)?.label}
               </p>
 
               <form onSubmit={handleAddDeal} className="space-y-5">
-                {/* Title & Company */}
+                {/* Title & Account */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">Deal Title *</label>
-                    <input 
-                      name="title" 
-                      required 
+                    <label className="block text-sm font-medium mb-1.5">
+                      {type === 'delivery' ? 'Project Title *' : 'Deal Title *'}
+                    </label>
+                    <input
+                      name="title"
+                      required
                       placeholder="e.g., Website Redesign"
-                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary focus:outline-none focus:border-brand-blue" 
+                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary focus:outline-none focus:border-brand-blue"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">Company Name</label>
-                    <input 
-                      name="company_name" 
-                      placeholder="e.g., Acme Corp"
-                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary" 
-                    />
-                  </div>
-                </div>
-
-                {/* Link to Account */}
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Link to Existing Account</label>
-                  <select 
-                    name="company_id"
-                    className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
-                  >
-                    <option value="">-- Select Account --</option>
-                    {accounts.map(account => (
-                      <option key={account.id} value={account.id}>{account.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Value & Probability */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5">Deal Value ($)</label>
-                    <input 
-                      name="value" 
-                      type="number"
-                      min="0"
-                      placeholder="10000"
-                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5">Probability (%)</label>
-                    <input 
-                      name="probability" 
-                      type="number"
-                      min="0"
-                      max="100"
-                      defaultValue="20"
-                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5">Priority</label>
-                    <select 
-                      name="priority"
+                    <label className="block text-sm font-medium mb-1.5">Account</label>
+                    <select
+                      name="account_id"
                       className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
                     >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
+                      <option value="">-- Select Account --</option>
+                      {accounts.map(account => (
+                        <option key={account.id} value={account.id}>{account.name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
-                {/* Contact & Owner */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Value & Probability */}
+                {type === 'pipeline' ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">Deal Value ($)</label>
+                      <input
+                        name="value"
+                        type="number"
+                        min="0"
+                        placeholder="10000"
+                        className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">Probability (%)</label>
+                      <input
+                        name="probability"
+                        type="number"
+                        min="0"
+                        max="100"
+                        defaultValue="20"
+                        className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
+                      />
+                    </div>
+                  </div>
+                ) : (
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">Primary Contact</label>
-                    <input 
-                      name="contact_name" 
-                      placeholder="John Doe"
-                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary" 
+                    <label className="block text-sm font-medium mb-1.5">Monthly Value ($)</label>
+                    <input
+                      name="value"
+                      type="number"
+                      min="0"
+                      placeholder="5000"
+                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
                     />
                   </div>
+                )}
+
+                {/* Contact (pipeline only) & Owner */}
+                <div className={`grid gap-4 ${type === 'pipeline' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {type === 'pipeline' && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">Primary Contact</label>
+                      <select
+                        name="contact_id"
+                        className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
+                      >
+                        <option value="">-- Select Contact --</option>
+                        {contacts.map(contact => (
+                          <option key={contact.id} value={contact.id}>{contact.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Deal Owner</label>
-                    <input 
-                      name="owner_name" 
-                      placeholder="Your name"
-                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary" 
-                    />
+                    <select
+                      name="owner_id"
+                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
+                    >
+                      <option value="">-- Select Owner --</option>
+                      {members.map(member => (
+                        <option key={member.id} value={member.id}>{member.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
                 {/* Next Step */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className={`grid gap-4 ${type === 'pipeline' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Next Step</label>
-                    <input 
-                      name="next_step" 
+                    <input
+                      name="next_step"
                       placeholder="e.g., Send proposal"
-                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary" 
+                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5">Due Date</label>
-                    <input 
-                      name="next_step_date" 
-                      type="date"
-                      className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary" 
-                    />
-                  </div>
+                  {type === 'pipeline' && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">Due Date</label>
+                      <input
+                        name="next_step_date"
+                        type="date"
+                        className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {/* Tags */}
+                {/* Services */}
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Tags (comma separated)</label>
-                  <input 
-                    name="tags" 
-                    placeholder="website, urgent, enterprise, ..."
-                    className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary" 
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Description / Notes</label>
-                  <textarea 
-                    name="description" 
-                    rows={4}
-                    placeholder="Add any details about this deal..."
-                    className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary resize-none" 
+                  <label className="block text-sm font-medium mb-1.5">Services (comma separated)</label>
+                  <input
+                    name="service_type"
+                    placeholder="website, seo, ads, ..."
+                    className="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surfaceSecondary dark:bg-dark-surfaceSecondary"
                   />
                 </div>
 
@@ -358,7 +439,7 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
                     type="submit"
                     className="flex-1 px-4 py-2.5 rounded-lg gradient-primary text-white font-medium hover:opacity-90 transition-opacity"
                   >
-                    Create Deal
+                    {type === 'delivery' ? 'Create Project' : 'Create Deal'}
                   </button>
                 </div>
               </form>
