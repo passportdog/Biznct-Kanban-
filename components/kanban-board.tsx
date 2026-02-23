@@ -37,8 +37,8 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedColumn, setSelectedColumn] = useState('')
   const [accounts, setAccounts] = useState<{id: string, name: string}[]>([])
-  const [contacts, setContacts] = useState<{id: string, name: string}[]>([])
-  const [members, setMembers] = useState<{id: string, name: string}[]>([])
+  const [contacts, setContacts] = useState<{id: string, first_name: string, last_name?: string}[]>([])
+  const [members, setMembers] = useState<{id: string, display_name: string}[]>([])
   const supabase = createClient()
 
   const columns = type === 'pipeline' ? pipelineColumns : deliveryColumns
@@ -102,12 +102,12 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
   }
 
   const fetchContacts = async () => {
-    const { data } = await supabase.from('crm_contacts').select('id, name').limit(100)
+    const { data } = await supabase.from('crm_contacts').select('id, first_name, last_name').limit(100)
     if (data) setContacts(data)
   }
 
   const fetchMembers = async () => {
-    const { data } = await supabase.from('crm_members').select('id, name').limit(100)
+    const { data } = await supabase.from('crm_members').select('id, display_name').limit(100)
     if (data) setMembers(data)
   }
 
@@ -234,7 +234,7 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
         const newDeal: Deal = {
           ...data[0],
           company_name: accounts.find(a => a.id === data[0].account_id)?.name,
-          owner_name: members.find(m => m.id === data[0].owner_id)?.name,
+          owner_name: members.find(m => m.id === data[0].owner_id)?.display_name,
         }
         setDeals([...deals, newDeal])
         setShowAddModal(false)
@@ -375,7 +375,7 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
                       >
                         <option value="">— Unassigned —</option>
                         {contacts.map(contact => (
-                          <option key={contact.id} value={contact.id}>{contact.name}</option>
+                          <option key={contact.id} value={contact.id}>{`${contact.first_name} ${contact.last_name || ''}`.trim()}</option>
                         ))}
                       </select>
                     </div>
@@ -388,7 +388,7 @@ export default function KanbanBoard({ type }: KanbanBoardProps) {
                     >
                       <option value="">— Unassigned —</option>
                       {members.map(member => (
-                        <option key={member.id} value={member.id}>{member.name}</option>
+                        <option key={member.id} value={member.id}>{member.display_name}</option>
                       ))}
                     </select>
                   </div>
